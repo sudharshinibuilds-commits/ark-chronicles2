@@ -1,0 +1,2 @@
+import{NextRequest}from'next/server';import{adminClient,currentUser,jsonError}from'../../_lib/server';
+export async function POST(req:NextRequest){const{article_id}=await req.json();if(!article_id)return jsonError('article_id required');const u=await currentUser(req);const{error}=await adminClient().rpc('record_article_read',{p_article:article_id,p_user:u?.id||null});return error?jsonError(error.message,500):Response.json({ok:true})}

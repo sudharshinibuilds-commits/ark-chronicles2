@@ -1,0 +1,3 @@
+import {NextRequest} from 'next/server';import{adminClient,currentUser,jsonError}from'../_lib/server';
+export async function GET(){const{data,error}=await adminClient().from('founders').select('*').eq('status','approved').order('created_at',{ascending:false});return error?jsonError(error.message,500):Response.json(data)}
+export async function POST(req:NextRequest){const u=await currentUser(req);if(!u)return jsonError('Login required',401);const b=await req.json();for(const k of['name','company','bio','email'])if(!b[k])return jsonError(`${k} is required`);const{data,error}=await adminClient().from('founders').upsert({...b,user_id:u.id,status:'pending'},{onConflict:'user_id'}).select().single();return error?jsonError(error.message,500):Response.json(data,{status:201})}

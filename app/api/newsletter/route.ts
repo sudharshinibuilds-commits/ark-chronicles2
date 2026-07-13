@@ -1,0 +1,2 @@
+import {NextRequest} from 'next/server';import{adminClient,jsonError}from'../_lib/server';
+export async function POST(req:NextRequest){const{email}=await req.json();if(!/^\S+@\S+\.\S+$/.test(email||''))return jsonError('Valid email required');const{data,error}=await adminClient().from('newsletter_subscribers').upsert({email:email.toLowerCase(),active:true},{onConflict:'email'}).select().single();return error?jsonError(error.message,500):Response.json(data,{status:201})}
