@@ -2,7 +2,8 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabase";
 
 import LoginModal from "./LoginModal";
 import JoinSuccessModal from "./JoinSuccessModal";
@@ -35,6 +36,7 @@ const menuItems = [
   { icon: "📚", label: "Magazines", href: "/magazines" },
   { icon: "👤", label: "Builders", href: "/builders" },
   { icon: "🚀", label: "Founders", href: "/founders" },
+  { icon: "💼", label: "Investors", href: "/investors" },
   { icon: "🔬", label: "Research", href: "/research" },
   { icon: "💡", label: "Projects & OS", href: "/projects" },
   { icon: "💼", label: "Opportunities", href: "/opportunities" },
@@ -46,10 +48,6 @@ const menuItems = [
   { icon: "🎓", label: "Mentorship", href: "/mentorship" },
   { icon: "📚", label: "Resource Library", href: "/resources" },
   { icon: "🧑💻", label: "Community", href: "/community" },
-  { icon: "🎙️", label: "Podcast", href: "/podcast" },
-  { icon: "👨💼", label: "Campus Ambassador", href: "/campus-ambassador" },
-  { icon: "🏛️", label: "Advisory Board", href: "/advisory-board" },
-  { icon: "📰", label: "Media Kit", href: "/media-kit" },
   { icon: "🔒", label: "Admin Panel", href: "/admin" },
 ];
 
@@ -61,10 +59,24 @@ export default function Header({
   const [menuOpen, setMenuOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [joinIntent, setJoinIntent] = useState(false);
   const [showJoinSuccess, setShowJoinSuccess] = useState(false);
 
-  // Called by LoginModal when the user successfully signs in/up
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   const handleLoginSuccess = () => {
     setIsLoggedIn(true);
     if (joinIntent) {
@@ -73,14 +85,20 @@ export default function Header({
     }
   };
 
-  // Called when Join ARK is clicked
   const handleJoinArk = () => {
     if (isLoggedIn) {
       setShowJoinSuccess(true);
     } else {
+      setAuthMode("signup");
       setJoinIntent(true);
       setLoginOpen(true);
     }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setIsLoggedIn(false);
+    window.location.reload();
   };
 
   return (
@@ -137,23 +155,47 @@ export default function Header({
               >
                 Submit Story
               </Link>
-              <button
-                type="button"
-                onClick={() => setLoginOpen(true)}
-                className="rounded-full border border-ark-navy/20 px-4 py-2 text-sm font-medium text-ark-navy transition-all duration-150 hover:scale-105 hover:border-ark-navy hover:bg-ark-navy/5"
-              >
-                Login
-              </button>
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
-                <button
-                  type="button"
-                  onClick={handleJoinArk}
-                  className="rounded-full px-5 py-2.5 text-sm font-semibold shadow-lg transition-all duration-150 hover:scale-105"
-                  style={{ backgroundColor: "#1B2A6B", color: "#FFFFFF", fontWeight: 700 }}
-                >
-                  Join Ark
-                </button>
-              </motion.div>
+
+              {isLoggedIn ? (
+                <>
+                  <Link
+                    href="/dashboard"
+                    className="rounded-full border border-ark-navy/20 px-4 py-2 text-sm font-medium text-ark-navy transition-all duration-150 hover:scale-105 hover:border-ark-navy hover:bg-ark-navy/5"
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="rounded-full bg-red-50 text-red-650 border border-red-100 px-4 py-2 text-sm font-medium transition-all duration-150 hover:scale-105 hover:bg-red-100"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode("login");
+                      setLoginOpen(true);
+                    }}
+                    className="rounded-full border border-ark-navy/20 px-4 py-2 text-sm font-medium text-ark-navy transition-all duration-150 hover:scale-105 hover:border-ark-navy hover:bg-ark-navy/5"
+                  >
+                    Login
+                  </button>
+                  <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
+                    <button
+                      type="button"
+                      onClick={handleJoinArk}
+                      className="rounded-full px-5 py-2.5 text-sm font-semibold shadow-lg transition-all duration-150 hover:scale-105"
+                      style={{ backgroundColor: "#1B2A6B", color: "#FFFFFF", fontWeight: 700 }}
+                    >
+                      Join Ark
+                    </button>
+                  </motion.div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -164,6 +206,7 @@ export default function Header({
         isOpen={loginOpen}
         onClose={() => { setLoginOpen(false); setJoinIntent(false); }}
         onLoginSuccess={handleLoginSuccess}
+        initialMode={authMode}
       />
 
       {/* Join Success Modal */}
@@ -239,21 +282,52 @@ export default function Header({
                   >
                     Submit Story
                   </Link>
-                  <button
-                    type="button"
-                    onClick={() => { setMenuOpen(false); setLoginOpen(true); }}
-                    className="rounded-full border border-white/20 px-4 py-3 text-center text-sm font-medium text-white transition-all duration-150 hover:border-white hover:bg-white/10"
-                  >
-                    Login
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setMenuOpen(false); handleJoinArk(); }}
-                    className="rounded-full px-4 py-3 text-center text-sm font-semibold transition-all duration-150 hover:scale-105"
-                    style={{ backgroundColor: "#D4A017", color: "#1B2A6B", fontWeight: 700 }}
-                  >
-                    Join Ark
-                  </button>
+                  {isLoggedIn ? (
+                    <>
+                      <Link
+                        href="/dashboard"
+                        onClick={() => setMenuOpen(false)}
+                        className="rounded-full border border-white/20 px-4 py-3 text-center text-sm font-medium text-white transition-all duration-150 hover:border-white hover:bg-white/10"
+                      >
+                        Dashboard
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          handleLogout();
+                        }}
+                        className="rounded-full bg-red-500/10 text-red-400 border border-red-500/20 px-4 py-3 text-center text-sm font-medium transition-all duration-150 hover:bg-red-500/20"
+                      >
+                        Logout
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setAuthMode("login");
+                          setLoginOpen(true);
+                        }}
+                        className="rounded-full border border-white/20 px-4 py-3 text-center text-sm font-medium text-white transition-all duration-150 hover:border-white hover:bg-white/10"
+                      >
+                        Login
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          handleJoinArk();
+                        }}
+                        className="rounded-full px-4 py-3 text-center text-sm font-semibold transition-all duration-150 hover:scale-105"
+                        style={{ backgroundColor: "#D4A017", color: "#1B2A6B", fontWeight: 700 }}
+                      >
+                        Join Ark
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>

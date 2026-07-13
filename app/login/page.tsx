@@ -167,7 +167,7 @@ export default function LoginPage() {
           fontSize: "14px",
           color: "#666",
         }}>
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link href="/signup" style={{ color: "#1B2A6B", fontWeight: 700 }}>
             Join Ark
           </Link>

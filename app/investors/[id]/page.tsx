@@ -10,7 +10,7 @@ import Footer from "../../components/Footer";
 import Header from "../../components/Header";
 import LiveTicker from "../../components/LiveTicker";
 import LoginModal from "../../components/LoginModal";
-import { Briefcase, ArrowLeft, AlertCircle, Sparkles, Globe, Mail } from "lucide-react";
+import { Briefcase, ArrowLeft, AlertCircle, Calendar, DollarSign, Target } from "lucide-react";
 
 const Linkedin = (props: any) => (
   <svg
@@ -28,7 +28,7 @@ const Linkedin = (props: any) => (
   </svg>
 );
 
-export default function FounderProfilePage() {
+export default function InvestorDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
@@ -40,12 +40,12 @@ export default function FounderProfilePage() {
     year: "numeric",
   }).format(new Date());
 
-  const [founder, setFounder] = useState<any>(null);
+  const [investor, setInvestor] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
 
-  // Message modal state
+  // Modal connection state
   const [showModal, setShowModal] = useState(false);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -69,20 +69,20 @@ export default function FounderProfilePage() {
           }
         }
 
-        // Fetch founder by ID from real Supabase table
-        const { data: fndr, error } = await supabase
-          .from("founders")
-          .select("*, profiles(streak, college, role, avatar_url)")
+        // Fetch investor by ID
+        const { data: inv, error } = await supabase
+          .from("investors")
+          .select("*")
           .eq("id", id)
           .single();
 
-        if (!error && fndr) {
-          setFounder(fndr);
+        if (!error && inv) {
+          setInvestor(inv);
         } else {
-          console.error("Error fetching founder from table:", error);
+          console.error("Error fetching investor:", error);
         }
       } catch (err) {
-        console.error("Failed to load founder profile:", err);
+        console.error("Failed to load investor:", err);
       } finally {
         setLoading(false);
       }
@@ -95,20 +95,20 @@ export default function FounderProfilePage() {
       setLoginOpen(true);
       return;
     }
-    setMessage(`Hi ${founder.name},\n\nI saw your venture profile on ARK Chronicles. I'm highly impressed by what you're building with ${founder.company || "your startup"} and would love to connect.`);
+    setMessage(`Hi ${investor.name},\n\nI saw your detailed profile on ARK Chronicles. I'm building a project in your space and would love to share our progress and get your feedback.`);
     setShowModal(true);
   };
 
-  const handleSubmitRequest = async (e: React.FormEvent) => {
+  const handleSubmitInterest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!founder || !currentUser) return;
+    if (!investor || !currentUser) return;
 
     setSubmitting(true);
     try {
       const { error } = await supabase.from("connection_requests").insert({
         from_user_id: currentUser.id,
-        to_user_id: founder.user_id || founder.id,
-        from_role: userProfile?.role || "investor",
+        to_user_id: investor.user_id || investor.id,
+        from_role: userProfile?.role || "founder",
         message: message,
         status: "pending"
       });
@@ -116,7 +116,7 @@ export default function FounderProfilePage() {
       if (error) {
         alert(`Failed to submit connection request: ${error.message}`);
       } else {
-        alert(`Your invite has been sent to ${founder.name}! Once accepted, their email and full contact information will be unlocked in your Dashboard.`);
+        alert(`Your expression of interest has been sent to ${investor.name}! If they accept, their contact details will be revealed in your Dashboard.`);
         setShowModal(false);
         setMessage("");
       }
@@ -128,28 +128,38 @@ export default function FounderProfilePage() {
     }
   };
 
+  // Helper to parse focus areas
+  const getFocusAreas = (areas: any) => {
+    if (!areas) return ["SaaS", "DeepTech"];
+    if (typeof areas === "string") {
+      return areas.split(",").map(a => a.trim()).filter(Boolean);
+    }
+    if (Array.isArray(areas)) return areas;
+    return ["SaaS", "DeepTech"];
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-[#faf9f6]">
         <Header currentDate={currentDate} navLinks={[]} cityLinks={[]} />
         <div className="flex h-[60vh] flex-col items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#1B2A6B] border-t-transparent" />
-          <p className="mt-3 text-xs font-bold uppercase tracking-wider text-zinc-500 animate-pulse">Syncing Founder briefing...</p>
+          <p className="mt-3 text-xs font-bold uppercase tracking-wider text-zinc-500 animate-pulse">Syncing Investor Profile...</p>
         </div>
         <Footer />
       </main>
     );
   }
 
-  if (!founder) {
+  if (!investor) {
     return (
       <main className="min-h-screen bg-[#faf9f6]">
         <Header currentDate={currentDate} navLinks={[]} cityLinks={[]} />
         <div className="mx-auto max-w-7xl px-4 py-16 text-center">
-          <h1 className="text-2xl font-black text-zinc-800">Founder Profile Not Found</h1>
-          <p className="text-zinc-500 text-sm mt-2">The profile may have been unlisted or is awaiting verification review.</p>
+          <h1 className="text-2xl font-black text-zinc-800">Investor Profile Not Found</h1>
+          <p className="text-zinc-500 text-sm mt-2">The profile may have been unpublished or removed by the platform administration.</p>
           <button
-            onClick={() => router.push("/founders")}
+            onClick={() => router.push("/investors")}
             className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#1B2A6B] text-white px-6 py-2.5 text-xs font-bold uppercase tracking-wider"
           >
             <ArrowLeft className="h-4 w-4" /> Back to Directory
@@ -159,6 +169,8 @@ export default function FounderProfilePage() {
       </main>
     );
   }
+
+  const focusAreas = getFocusAreas(investor.focus_areas);
 
   return (
     <main className="min-h-screen bg-[#faf9f6]">
@@ -185,115 +197,117 @@ export default function FounderProfilePage() {
       />
       <LiveTicker
         items={[
-          `Viewing live founder profile: ${founder.name} (${founder.company}).`,
-          "Matchmaking systems online. Reach out to coordinate direct intros.",
+          `Viewing premium investor briefing: ${investor.name} (${investor.firm || "Ecosystem Angel"}).`,
+          "ARK Bridge facilitators ready to verify connection approvals.",
         ]}
       />
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <button
-          onClick={() => router.push("/founders")}
+          onClick={() => router.push("/investors")}
           className="mb-6 inline-flex items-center gap-2 text-xs font-bold text-ark-navy hover:underline uppercase tracking-wider"
         >
           <ArrowLeft className="h-4.5 w-4.5" /> Back to Directory
         </button>
 
         <div className="grid gap-8 lg:grid-cols-3">
-          {/* Sidebar Profiler */}
+          {/* Sidebar Info Card */}
           <div className="lg:col-span-1">
             <div className="overflow-hidden rounded-3xl border border-black/8 bg-white p-6 shadow-lg">
-              <div className="relative h-48 w-full overflow-hidden rounded-2xl ring-2 ring-black/5">
+              <div className="relative h-56 w-full overflow-hidden rounded-2xl ring-2 ring-black/5">
                 <img
-                  src={founder.photo_url || `https://picsum.photos/seed/founder-${founder.id}/400/400`}
-                  alt={founder.name}
+                  src={investor.photo_url || `https://picsum.photos/seed/inv-${investor.id}/400/400`}
+                  alt={investor.name}
                   className="h-full w-full object-cover"
                   onError={(e) => {
-                    e.currentTarget.src = `https://picsum.photos/seed/founder-${founder.id}/400/400`;
+                    e.currentTarget.src = `https://picsum.photos/seed/inv-${investor.id}/400/400`;
                   }}
                 />
               </div>
 
-              <h1 className="mt-4 font-display text-2xl font-bold text-ark-black flex items-center gap-2">
-                {founder.name}
-                <span className="text-sm font-bold text-ark-gold">★</span>
+              <h1 className="mt-5 font-display text-2xl font-black text-ark-black leading-tight flex items-center gap-2">
+                {investor.name}
               </h1>
-              <p className="mt-1 text-md font-semibold text-ark-navy">{founder.company}</p>
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{founder.headline || "Founder"}</p>
-              <p className="mt-2 text-xs text-zinc-500">
-                {founder.profiles?.college || "Elite Institution"}
-              </p>
+              <p className="mt-1 text-md font-bold text-ark-navy">{investor.firm || "Ecosystem Angel"}</p>
+              
+              <div className="mt-6 border-t border-black/5 pt-5 space-y-4">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-zinc-400 font-semibold uppercase tracking-wider text-[9px] flex items-center gap-1">
+                    <Target className="h-3.5 w-3.5 text-zinc-400" /> Min Check Size
+                  </span>
+                  <span className="font-black text-zinc-850">{investor.min_check_size || "$25K"}</span>
+                </div>
+                
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-zinc-400 font-semibold uppercase tracking-wider text-[9px] flex items-center gap-1">
+                    <DollarSign className="h-3.5 w-3.5 text-zinc-400" /> Max Check Size
+                  </span>
+                  <span className="font-black text-ark-gold">{investor.max_check_size || "$500K"}</span>
+                </div>
 
-              {/* Startup Details */}
-              <div className="mt-6 border-t border-black/5 pt-4 space-y-3">
-                {founder.industry && (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-zinc-400 font-semibold">Industry</span>
-                    <span className="font-bold text-ark-navy">{founder.industry}</span>
-                  </div>
-                )}
-                {founder.stage && (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-zinc-400 font-semibold">Stage</span>
-                    <span className="font-bold text-zinc-700">{founder.stage}</span>
-                  </div>
-                )}
-                {founder.website_url && (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-zinc-400 font-semibold">Website</span>
-                    <a href={founder.website_url} target="_blank" rel="noreferrer" className="font-bold text-ark-navy hover:underline flex items-center gap-1">
-                      <Globe className="h-3 w-3" /> Visit Site
-                    </a>
-                  </div>
-                )}
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-zinc-400 font-semibold uppercase tracking-wider text-[9px] flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5 text-zinc-400" /> Onboarded
+                  </span>
+                  <span className="font-bold text-zinc-700">
+                    {investor.created_at ? new Date(investor.created_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) : "Recently"}
+                  </span>
+                </div>
               </div>
 
-              <div className="mt-6 flex flex-col gap-2">
-                {founder.linkedin_url && (
+              <div className="mt-6 pt-5 border-t border-black/5 flex flex-col gap-2.5">
+                {investor.linkedin_url && (
                   <a
-                    href={founder.linkedin_url}
+                    href={investor.linkedin_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-xs font-semibold text-white transition-all hover:scale-105"
+                    className="flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-xs font-semibold text-white transition-all hover:scale-105 shadow-sm"
                     style={{ backgroundColor: "#0077B5" }}
                   >
-                    <Linkedin className="h-4 w-4" /> LinkedIn Connection
+                    <Linkedin className="h-4 w-4" /> LinkedIn Profile
                   </a>
                 )}
                 <button
                   onClick={handleConnectClick}
-                  className="flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-xs font-bold text-white transition-all hover:opacity-90 uppercase tracking-wider"
+                  className="w-full rounded-full border-2 border-ark-navy px-4 py-2.5 text-xs font-bold text-white uppercase tracking-wider transition-all duration-150 hover:opacity-90 shadow-sm"
                   style={{ backgroundColor: "#1B2A6B" }}
                 >
-                  Invite / Reach Out
+                  Express Interest
                 </button>
               </div>
-
-              {founder.profiles?.streak > 0 && (
-                <div className="mt-6 border-t border-black/5 pt-4">
-                  <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-ark-navy">Streak Accolades</h3>
-                  <div className="mt-2 flex">
-                    <span className="rounded-full bg-orange-500/10 border border-orange-500/20 px-3 py-1.5 text-[10px] font-black text-orange-650 flex items-center gap-1">
-                      🔥 {founder.profiles.streak} Days Streak
-                    </span>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Main story Timeline */}
+          {/* Detailed Bio & Focus Areas */}
           <div className="lg:col-span-2 space-y-6">
             <div className="overflow-hidden rounded-3xl border border-black/8 bg-white p-8 shadow-lg">
-              <h2 className="font-display text-2xl font-bold text-ark-black border-b border-black/5 pb-3">Founder Story</h2>
-              <p className="mt-4 leading-7 text-zinc-700 text-sm whitespace-pre-line">
-                {founder.bio || "No biography details shared yet."}
+              <h2 className="font-display text-2xl font-black text-ark-black border-b border-black/5 pb-4">Professional Brief</h2>
+              <p className="mt-5 leading-7 text-zinc-700 text-sm whitespace-pre-line">
+                {investor.bio || "No biography provided."}
+              </p>
+            </div>
+
+            <div className="overflow-hidden rounded-3xl border border-black/8 bg-white p-8 shadow-lg">
+              <h2 className="font-display text-2xl font-black text-ark-black border-b border-black/5 pb-4">Focus Sectors & Core Thesis</h2>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {focusAreas.map((area: string) => (
+                  <span
+                    key={area}
+                    className="rounded-full bg-[#1B2A6B]/5 border border-[#1B2A6B]/15 px-3.5 py-2 text-xs font-bold text-ark-navy uppercase tracking-wider"
+                  >
+                    {area}
+                  </span>
+                ))}
+              </div>
+              <p className="mt-4 text-xs text-zinc-400 italic">
+                This investor focuses on opportunities in the sectors outlined above. When submitting requests, align your introduction with these priorities.
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Connection Request Modal */}
+      {/* Express Interest Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-xs">
           <div className="w-full max-w-md rounded-3xl border border-black/10 bg-white p-7 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150">
@@ -301,15 +315,15 @@ export default function FounderProfilePage() {
               <Briefcase className="h-3 w-3 animate-pulse" /> Direct Connection Request
             </span>
             <h2 className="font-display text-2xl font-black text-ark-black leading-tight">
-              Reach Out to {founder.name}
+              Express Interest to {investor.name}
             </h2>
             <p className="text-xs text-zinc-500 mt-1">
-              Your message and profile will be shared. Once approved, the founder&apos;s direct email address will be unlocked on your Dashboard.
+              Your connection message and profile details will be shared. Once accepted, both parties can view each other's emails.
             </p>
 
-            <form onSubmit={handleSubmitRequest} className="mt-5 space-y-4">
+            <form onSubmit={handleSubmitInterest} className="mt-5 space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Your Message</label>
+                <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Introduction Message</label>
                 <textarea
                   required
                   rows={5}
@@ -341,7 +355,7 @@ export default function FounderProfilePage() {
                   disabled={submitting}
                   className="flex-1 rounded-full bg-[#1B2A6B] px-4 py-2.5 text-xs font-bold text-white shadow-lg disabled:opacity-50 uppercase tracking-wider"
                 >
-                  {submitting ? "Sending..." : "Submit Invite"}
+                  {submitting ? "Sending..." : "Submit Inquiry"}
                 </button>
               </div>
             </form>
